@@ -10,6 +10,78 @@
         "--local-timezone=Europe/Prague"
       ],
       "icon": "⏰"
+    },
+    "geocode-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "geocode-mcp"],
+      "icon": "📍"
+    },
+    "google-maps-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+      "env": {
+        "GOOGLE_MAPS_API_KEY": { "fromEnv": "GOOGLE_MAPS_API_KEY" }
+      },
+      "icon": "🗺️"
+    },
+    "opencage-geocoding": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@opencage/mcp-opencage-server"],
+      "env": {
+        "OPENCAGE_API_KEY": { "fromEnv": "OPENCAGE_API_KEY" }
+      },
+      "icon": "🌐"
+    },
+    "mapbox-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mapbox/mcp-server"],
+      "env": {
+        "MAPBOX_ACCESS_TOKEN": { "fromEnv": "MAPBOX_ACCESS_TOKEN" }
+      },
+      "icon": "🧭"
+    },
+    "foursquare-places": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upamune/foursquare-mcp"],
+      "env": {
+        "FOURSQUARE_API_KEY": { "fromEnv": "FOURSQUARE_API_KEY" },
+        "FOURSQUARE_SERVICE_TOKEN": { "fromEnv": "FOURSQUARE_API_KEY" },
+        "FOURSQUARE_CLIENT_ID": { "fromEnv": "FOURSQUARE_CLIENT_ID" },
+        "FOURSQUARE_CLIENT_SECRET": { "fromEnv": "FOURSQUARE_CLIENT_SECRET" }
+      },
+      "icon": "🏙️"
+    },
+    "overture-maps-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@thatapicompany/overture-maps-mcp"],
+      "env": {
+        "OVERTURE_API_KEY": { "fromEnv": "OVERTURE_API_KEY" }
+      },
+      "icon": "🌍"
+    },
+    "open-meteo-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@cyanheads/open-meteo-mcp-server"],
+      "icon": "⛅"
+    },
+    "nws-alerts": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@cyanheads/nws-weather-mcp-server"],
+      "icon": "⚠️"
+    },
+    "stac-search": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["stac-mcp"],
+      "icon": "🛰️"
     }
   }
 }

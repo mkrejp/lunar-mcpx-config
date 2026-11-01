@@ -8,6 +8,7 @@ CONFIG_DIR="${MCPX_CONFIG_DIR:-/lunar/packages/mcpx-server/config}"
 DEFAULTS_DIR="${MCPX_DEFAULTS_DIR:-/defaults/config}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ENSURE_APP_AUTH="${ENSURE_APP_AUTH:-${SCRIPT_DIR}/ensure_app_auth.py}"
+ENSURE_MCP_SERVERS="${ENSURE_MCP_SERVERS:-${SCRIPT_DIR}/ensure_mcp_servers.py}"
 
 mkdir -p "${CONFIG_DIR}/audit-logs"
 
@@ -32,6 +33,13 @@ auth:
   enabled: true
   header: x-lunar-api-key
 EOF
+fi
+
+# Add git-tracked MCP servers that are missing on the volume. Never deletes
+# or overwrites an existing server name (keeps UI / user edits).
+if [ -f "${CONFIG_DIR}/mcp.json" ]; then
+  python3 "${ENSURE_MCP_SERVERS}" "${CONFIG_DIR}/mcp.json" \
+    --defaults "${DEFAULTS_DIR}/mcp.json"
 fi
 
 # Merge auth.enabled=true into the volume file. Does not rewrite mcp.json
