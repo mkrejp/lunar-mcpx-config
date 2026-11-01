@@ -243,13 +243,33 @@ Nový projekt **nevytvářejte** — služba `lunar-mcpx` už existuje.
 
 ## Přidání MCP serverů
 
-Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Existující `mcp.json` se **nikdy** nepřepisuje (UI / ruční edity zůstanou). `app.yaml` se seeduje stejně, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`), aby se zapnutí auth projevilo i na volume z PR #1. Další změny:
+Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Při každém dalším startu entrypoint **doplní chybějící** servery z Gitu; existující jména (včetně `time` a UI editů) **nepřepisuje ani nemaže**. `app.yaml` se seeduje stejně, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`). Další změny:
 
 1. **Control Plane UI** (doména na portu 5173) → Add Server, nebo
 2. úprava `mcp.json` v Gitu + smazání souboru na volume (jinak seed nepřepíše existující soubor), nebo
 3. `railway volume files` / Volume browser.
 
 Ukázkový server **`time`** (uvx / stdio) je neškodný a **nepotřebuje Docker**. Image obsahuje `uv` a Node, takže `uvx` / `npx` stdio servery na Railway můžou běžet bez privileged režimu.
+
+### Upstream geo / počasí (stdio)
+
+Do `mcp.json` jsou přidané tyto servery. Tajemství jdou přes MCPX `{ "fromEnv": "…" }` (žádné klíče v Gitu). Kategorie z katalogu (`// --- … --- //`) se neukládají — MCPX je jako servery nebere.
+
+| Jméno v MCPX | Příkaz | Railway variable | Poznámka |
+| --- | --- | --- | --- |
+| `geocode-mcp` | `npx -y geocode-mcp` | — | Nominatim, bez klíče |
+| `google-maps-mcp` | `npx -y @modelcontextprotocol/server-google-maps` | `GOOGLE_MAPS_API_KEY` | přesně podle zadání |
+| `opencage-geocoding` | `npx -y @opencage/mcp-opencage-server` | `OPENCAGE_API_KEY` | npm jméno `opencage-geocoding-mcp` neexistuje |
+| `mapbox-mcp` | `npx -y @mapbox/mcp-server` | `MAPBOX_ACCESS_TOKEN` | přesně podle zadání |
+| `foursquare-places` | `npx -y @upamune/foursquare-mcp` | `FOURSQUARE_API_KEY` (plus volitelně `FOURSQUARE_CLIENT_ID` / `FOURSQUARE_CLIENT_SECRET`) | oficiální `foursquare-places-mcp` není na npm |
+| `overture-maps-mcp` | `npx -y @thatapicompany/overture-maps-mcp` | `OVERTURE_API_KEY` | `overture-maps-mcp-server` není na PyPI; toto je publikovaný npm klient API (ne DuckDB/S3) |
+| `open-meteo-mcp` | `npx -y @cyanheads/open-meteo-mcp-server` | — | `open-meteo-mcp-server` není na PyPI |
+| `nws-alerts` | `npx -y @cyanheads/nws-weather-mcp-server` | — | `@modelcontextprotocol/server-nws` není na npm |
+| `stac-search` | `uvx stac-mcp` | — | přesně podle zadání |
+
+**`postgis-mcp`** v image **není** — balíček není na npm ani PyPI. Až bude, přidejte ho v UI nebo do `mcp.json` s `POSTGIS_DATABASE_URL` (`fromEnv`). `localhost:5432` na Railway nefunguje.
+
+Klíče nastavte na **lunar-mcpx → Variables**. První spawn `npx`/`uvx` stáhne balíček (může trvat). Servery bez klíče se v Control Plane ukážou, ale tool call selže, dokud variable není.
 
 Vzdálené HTTP servery (doporučené na Railway):
 

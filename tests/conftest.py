@@ -1,4 +1,4 @@
-"""Pytest path setup so tests can import ``ensure_app_auth`` from docker/."""
+"""Pytest path setup so tests can import helpers from docker/."""
 
 from __future__ import annotations
 
