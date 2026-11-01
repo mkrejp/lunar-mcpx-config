@@ -56,6 +56,8 @@ export default defineRailway(() => {
       VITE_MCPX_SERVER_PORT: "443",
       VITE_WS_URL: "wss://${{RAILWAY_PUBLIC_DOMAIN}}",
       OAUTH_CALLBACK_BASE_URL: "https://${{RAILWAY_PUBLIC_DOMAIN}}",
+      // AUTH_KEY is required at runtime (fail-closed). Set it only in the
+      // Railway dashboard / `railway variable set` — never commit the value.
     },
   });
 

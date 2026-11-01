@@ -3,11 +3,18 @@
 # Newer OSS schema also accepts `permissions.default.block: []` (allow-all).
 # Missing app.yaml falls back to built-in defaults (auth off, allow-all).
 #
-# Before exposing this instance on a public Railway domain, set AUTH_KEY in
-# Railway variables and flip auth.enabled to true.
+# Auth (MCPX 0.5.8):
+#   app.yaml  auth.enabled + optional auth.header
+#   env       AUTH_KEY  (shared secret; not stored in this file)
+#   header    x-lunar-api-key  (DEFAULT_API_KEY_HEADER in
+#             mcpx-server/src/server/auth.ts; auth.header overrides)
+# Railway volume files are seeded only on first start. The entrypoint
+# merges auth.enabled=true into an existing volume app.yaml so this
+# change takes effect without wiping mcp.json.
 
 auth:
-  enabled: false
+  enabled: true
+  header: x-lunar-api-key
 
 permissions:
   base: "allow"

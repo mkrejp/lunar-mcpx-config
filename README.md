@@ -110,7 +110,10 @@ LOG_LEVEL=info
 ENABLE_CONTROL_PLANE_REST=true
 ENABLE_CONTROL_PLANE_STREAMING=true
 VITE_MCPX_SERVER_PORT=443
+AUTH_KEY=<dlouhý náhodný secret, viz Autentizace>
 ```
+
+`AUTH_KEY` nastavte **před** merge/redeploy. Bez něj kontejner skončí (fail-closed) a služba nepoběží.
 
 **Po vygenerování veřejné domény na port 9000** (reference variables v dashboardu):
 
@@ -123,24 +126,100 @@ CORS_ORIGINS=https://${{RAILWAY_PUBLIC_DOMAIN}}
 
 Až budete mít i UI doménu na 5173, **přidejte ji** do `CORS_ORIGINS` (čárkou oddělené origin URL bez cesty). Bez toho Control Plane z prohlížeče neuvidí API.
 
-**Před veřejným provozem:**
-
-```
-AUTH_KEY=<dlouhý náhodný secret>
-```
-
-a v `config/app.yaml` (nebo po prvním startu na volume) `auth.enabled: true`.
-
 Kompletní seznam včetně volitelných proměnných je v [`.env.example`](.env.example).
+
+## Autentizace
+
+Veřejný endpoint `/mcp` musí posílat API klíč. Ověřeno proti upstream MCPX **0.5.8** (`mcpx/packages/mcpx-server`):
+
+| Co | Hodnota | Zdroj |
+| --- | --- | --- |
+| Env var (shared secret) | **`AUTH_KEY`** | `src/env.ts` (`AUTH_KEY: z.string().optional()`), `.env.example` |
+| Zapnutí v configu | **`auth.enabled: true`** v `app.yaml` | `shared-model` `authSchema`; Helm/Boomi docs |
+| Header, který klienti posílají | **`x-lunar-api-key`** | `src/server/auth.ts` `DEFAULT_API_KEY_HEADER`; IT test `auth.it.test.ts` |
+| Override názvu headeru | `auth.header` v `app.yaml` | stejný guard; default se nechá `x-lunar-api-key` |
+
+Header **`x-lunar-auth-key` se v kódu 0.5.8 nepoužívá** (starší rozpor v docs). `/healthcheck` zůstává bez klíče (Railway healthcheck).
+
+Bez `AUTH_KEY` by upstream `buildApiKeyGuard` auth **vypnul** (fail-open, jen warning). Tento repo proto **odmítne start** a do existujícího volume `app.yaml` při každém startu **sloučí** `auth.enabled: true` — `mcp.json` a ostatní klíče (`permissions`, `toolGroups`) se nepřepisují.
+
+### 1. Vygenerovat silný klíč
+
+```bash
+openssl rand -hex 32
+# nebo
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Výsledek nikam do Gitu nedávejte.
+
+### 2. Nastavit `AUTH_KEY` na službě `lunar-mcpx`
+
+Dashboard: **lunar-mcpx → Variables → New Variable**
+
+| | |
+| --- | --- |
+| Name | `AUTH_KEY` |
+| Value | výstup z příkazu výše |
+
+CLI:
+
+```bash
+railway variable set AUTH_KEY='<vygenerovaný-klíč>' \
+  --service lunar-mcpx \
+  --environment production \
+  --project 87d54f99-b2b7-4f56-b2cd-f5abb6c825d6
+```
+
+Pak redeploy (merge do `main` ho spustí sám). Hodnotu si uložte; Railway ji později v OAuth/MCP nevypíše.
+
+### 3. MCP klienti — header `x-lunar-api-key`
+
+**Cursor / Claude Desktop** (`~/.cursor/mcp.json` nebo ekvivalent):
+
+```json
+{
+  "mcpServers": {
+    "mcpx": {
+      "url": "https://lunar-mcpx-production.up.railway.app/mcp",
+      "headers": {
+        "x-lunar-api-key": "<AUTH_KEY>"
+      }
+    }
+  }
+}
+```
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http mcpx \
+  "https://lunar-mcpx-production.up.railway.app/mcp" \
+  --header "x-lunar-api-key: <AUTH_KEY>" \
+  --scope user
+```
+
+**curl** (initialize; bez headeru očekávejte `401 Unauthorized: API key required`):
+
+```bash
+curl -sS -X POST "https://lunar-mcpx-production.up.railway.app/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "x-lunar-api-key: $AUTH_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+```
+
+Špatný klíč → `403 Forbidden: Invalid API key`. Control Plane REST (`/config`, `/catalog`, …) používá stejný guard a stejný header. CORS v 0.5.8 `x-lunar-api-key` v `allowedHeaders` nemá — prohlížečové volání z jiné origin může padnout na preflight; Cursor/Claude/curl to neřeší.
 
 ## Deploy
 
 ### Dashboard (už napojený Git)
 
-1. Mergněte tento branch do `main` (služba sleduje `main`).
-2. Doplňte Variables, Volume a dvě veřejné domény podle tabulky výše.
-3. Počkejte na SUCCESS. Healthcheck musí vrátit 2xx na `/healthcheck` na portu **9000** (`PORT=9000`).
-4. Ověřte podle sekce [Ověření](#ověření).
+1. **Nejdřív** nastavte `AUTH_KEY` na `lunar-mcpx` (viz [Autentizace](#autentizace)). Bez něj nový kontejner skončí.
+2. Mergněte tento branch do `main` (služba sleduje `main`).
+3. Volume, domény a ostatní Variables podle tabulky výše.
+4. Počkejte na SUCCESS. Healthcheck musí vrátit 2xx na `/healthcheck` na portu **9000** (`PORT=9000`) — healthcheck klíč neposílá.
+5. Ověřte podle sekce [Ověření](#ověření) **s** headerem `x-lunar-api-key`.
 
 ### CLI
 
@@ -164,7 +243,7 @@ Nový projekt **nevytvářejte** — služba `lunar-mcpx` už existuje.
 
 ## Přidání MCP serverů
 
-Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Další změny:
+Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Existující `mcp.json` se **nikdy** nepřepisuje (UI / ruční edity zůstanou). `app.yaml` se seeduje stejně, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`), aby se zapnutí auth projevilo i na volume z PR #1. Další změny:
 
 1. **Control Plane UI** (doména na portu 5173) → Add Server, nebo
 2. úprava `mcp.json` v Gitu + smazání souboru na volume (jinak seed nepřepíše existující soubor), nebo
@@ -212,13 +291,16 @@ curl -sS "https://<MCP_DOMAIN>/healthcheck"
 
 Control Plane: otevřete `https://<UI_DOMAIN>/` a zkontrolujte, že je vidět server `time` (první spawn `uvx` může trvat minutu).
 
-MCP klient (Cursor `~/.cursor/mcp.json`):
+MCP klient musí posílat **`x-lunar-api-key`** (viz [Autentizace](#autentizace)). Cursor `~/.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "mcpx": {
-      "url": "https://<MCP_DOMAIN>/mcp"
+      "url": "https://<MCP_DOMAIN>/mcp",
+      "headers": {
+        "x-lunar-api-key": "<AUTH_KEY>"
+      }
     }
   }
 }
@@ -227,10 +309,9 @@ MCP klient (Cursor `~/.cursor/mcp.json`):
 Claude Code:
 
 ```bash
-claude mcp add --transport http mcpx "https://<MCP_DOMAIN>/mcp" --scope user
+claude mcp add --transport http mcpx "https://<MCP_DOMAIN>/mcp" \
+  --header "x-lunar-api-key: <AUTH_KEY>" --scope user
 ```
-
-Když zapnete `auth.enabled`, přidejte header `x-lunar-api-key: <AUTH_KEY>` (viz otevřené otázky).
 
 Legacy SSE: `https://<MCP_DOMAIN>/sse`.  
 Metrics (privátní): `http://lunar-mcpx.railway.internal:3000/metrics`.
@@ -241,7 +322,7 @@ Metrics (privátní): `http://lunar-mcpx.railway.internal:3000/metrics`.
 | --- | --- | --- |
 | Jedna veřejná HTTP doména = jeden cílový port | Image poslouchá na 9000, 5173 a 3000 | Primární doména → **9000** (MCP). Druhá doména → **5173** (UI). Metrics nechat na private network. |
 | Žádný privileged / Docker-in-Docker | `command: docker` stdio servery nespustí | Vzdálené `streamable-http` / `sse`, nebo stdio `uvx`/`npx` (image je má nainstalované). |
-| Volume není v buildu ani pre-deploy | Seed configu musí být ve start command | `docker/railway-entrypoint.sh` zkopíruje defaulty, jen když na volume soubor chybí. |
+| Volume není v buildu ani pre-deploy | Seed configu musí být ve start command | `docker/railway-entrypoint.sh` zkopíruje `mcp.json` / `app.yaml`, jen když na volume chybí; `auth.enabled` se do existujícího `app.yaml` sloučí při každém startu. |
 | Volume + zero-downtime | Krátký výpadek při redeploy | Očekávané; healthcheck jen přepíná traffic až po 2xx. |
 | Config as Code (`railway.json`) deprecated | Nové služby ho od 2026-12-01 nemusí číst | Stejné hodnoty nastavte v dashboardu; `.railway/railway.ts` je volitelný IaC, **nespravujte** službu oběma modely naráz. |
 | `PORT` vs více portů | Healthcheck jde na `$PORT` | `PORT=9000` musí sedět s `MCPX_PORT` a target portem MCP domény. |
@@ -255,7 +336,6 @@ V tomhle prostředí už běží `FastMCP-aggregator` a `MCP-inspectoriat`. MCPX
 
 - Tag `latest` v registry je `0.4.55`, zatímco nejnovější otagovaná verze je `0.5.8`. Pinujeme `0.5.8`.
 - Schéma `app.yaml`: Helm používá `permissions.base: allow`, novější OSS kód `permissions.default.block: []`. Soubor obsahuje obojí; pokud 0.5.8 jednu variantu odmítne, nechte tu, kterou image přijme (chybějící app.yaml padá na built-in default).
-- Auth header: stránka API key uvádí `x-lunar-api-key`, stránka env vars `x-lunar-auth-key`. Ověřte proti logům, až zapnete `auth.enabled`.
 - Privátní IPv6: nové Railway environmenty resolvují i IPv6. Pokud Node/uvx k `*.railway.internal` nepřipojí, zkuste explicitní port a HTTP (ne HTTPS).
 - Jestli tato nová služba ještě čte `railway.json` (Config as Code cutoff 2026-12-01). Proto je checklist dashboardu autoritativní.
 - Stdio `uvx` na Railway: první start stahuje PyPI; pokud volume/home není zapisovatelný, spawn selže — logy `lunar` / `UV_CACHE_DIR`.

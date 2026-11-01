@@ -1,5 +1,7 @@
 # Thin wrapper around the official Lunar MCPX all-in-one image.
 # Pins the published tag and bakes git-tracked config defaults.
+# Official image already has python3 (apk python3~3.12) for uvx; the
+# entrypoint uses it to merge auth onto the persistent volume.
 #
 # Upstream image (server :9000, UI :5173, metrics :3000):
 #   us-central1-docker.pkg.dev/prj-common-442813/mcpx/mcpx:<version>
@@ -14,8 +16,9 @@ USER root
 COPY config/mcp.json /defaults/config/mcp.json
 COPY config/app.yaml /defaults/config/app.yaml
 COPY docker/railway-entrypoint.sh /usr/local/bin/railway-entrypoint.sh
+COPY docker/ensure_app_auth.py /usr/local/bin/ensure_app_auth.py
 
-RUN chmod +x /usr/local/bin/railway-entrypoint.sh \
+RUN chmod +x /usr/local/bin/railway-entrypoint.sh /usr/local/bin/ensure_app_auth.py \
     && mkdir -p /lunar/packages/mcpx-server/config \
     && chown -R lunar:lunar /defaults /lunar/packages/mcpx-server/config
 

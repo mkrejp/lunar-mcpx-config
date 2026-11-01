@@ -4,3 +4,6 @@
 .DS_Store
 *.log
 .railway/node_modules/
+__pycache__/
+.pytest_cache/
+*.py[cod]
