@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "time": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--with",
+        "mcp<2.0.0",
+        "mcp-server-time",
+        "--local-timezone=Europe/Prague"
+      ],
+      "icon": "⏰"
+    },
+    "fastmcp-aggregator": {
+      "type": "streamable-http",
+      "url": "http://fastmcp-aggregator.railway.internal:8080/mcp"
+    }
+  }
+}

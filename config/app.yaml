@@ -1,0 +1,21 @@
+# MCPX application config (ACL, auth, tool groups).
+# Official Helm/Terraform default is `permissions.base: allow`.
+# Newer OSS schema also accepts `permissions.default.block: []` (allow-all).
+# Missing app.yaml falls back to built-in defaults (auth off, allow-all).
+#
+# Before exposing this instance on a public Railway domain, set AUTH_KEY in
+# Railway variables and flip auth.enabled to true.
+
+auth:
+  enabled: false
+
+permissions:
+  base: "allow"
+  default:
+    block: []
+  consumers: {}
+
+toolGroups: []
+
+toolExtensions:
+  services: {}
