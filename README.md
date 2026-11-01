@@ -265,6 +265,11 @@ Výchozí servery v `config/mcp.json`:
 - **`time`** — `uvx` / stdio, nepotřebuje Docker.
 - **`openstreetmap-mcp-server`** — `npx -y @cyanheads/openstreetmap-mcp-server`, env `OSM_USER_AGENT=animarium-lunar-mcpx/1.0`. První start stáhne balíček z npm.
 - **`osrm`** — vzdálený Streamable HTTP `https://gateway.pipeworx.io/osrm/mcp` (veřejný OSRM pack, bez klíče). Kořen `https://pipeworx.io` MCP neposlouchá.
+- **`geocode-mcp`** — `npx -y geocode-mcp`, env `GEOCODE_USER_AGENT`.
+- **`mcp-nominatim`** — `npx -y @pipeworx/mcp-nominatim`. Scope `@pipeworx-io` na npm není.
+- **`open-streetmap-mcp`** — `uvx osm-mcp-server`.
+- **`switzerland-mcp`** — `npx -y mcp-swiss` (Vikram Gorla). Balíček `@vikramgorla/swiss-mcp` na npm není.
+- **`clio-geojson`** — `uvx clio-kit mcp-server geojson`. Samostatný balíček `clio-geojson-mcp` na PyPI není.
 
 Image obsahuje `uv` a Node, takže `uvx` / `npx` stdio servery na Railway můžou běžet bez privileged režimu.
 
