@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -210,10 +211,10 @@ def test_entrypoint_fails_closed_without_auth_key(
     assert "FATAL: AUTH_KEY" in result.stderr
 
 
-def test_entrypoint_merges_volume_app_yaml_and_keeps_mcp_json(
+def test_entrypoint_merges_volume_app_yaml_and_adds_missing_mcp_servers(
     tmp_path: Path,
 ) -> None:
-    """Existing volume mcp.json stays put; app.yaml auth is merged.
+    """Existing volume servers stay; missing default servers are inserted.
 
     Args:
         tmp_path: Pytest temporary directory.
@@ -229,7 +230,7 @@ def test_entrypoint_merges_volume_app_yaml_and_keeps_mcp_json(
         encoding="utf-8",
     )
     (defaults_dir / "mcp.json").write_text(
-        '{"mcpServers":{"time":{}}}\n',
+        '{"mcpServers":{"time":{"command":"uvx"}}}\n',
         encoding="utf-8",
     )
 
@@ -239,7 +240,10 @@ def test_entrypoint_merges_volume_app_yaml_and_keeps_mcp_json(
         env={"AUTH_KEY": "integration-secret"},
     )
     assert result.returncode == 0, result.stderr
-    assert (config_dir / "mcp.json").read_text(encoding="utf-8") == USER_EDITED_MCP_JSON
+    servers = json.loads((config_dir / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]
+    assert servers["custom"] == {"type": "stdio", "command": "echo"}
+    assert servers["time"] == {"command": "uvx"}
+    assert "added mcp servers to volume: time" in result.stdout
     volume_app = (config_dir / "app.yaml").read_text(encoding="utf-8")
     assert "enabled: true" in volume_app
     assert "header: x-lunar-api-key" in volume_app

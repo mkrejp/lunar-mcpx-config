@@ -1,6 +1,7 @@
 #!/bin/sh
-# Seed git-tracked defaults onto the Railway volume, force-enable MCPX auth
-# on the existing volume app.yaml (without touching mcp.json), then start.
+# Seed git-tracked defaults onto the Railway volume, add any default MCP
+# servers missing from an existing volume mcp.json, force-enable MCPX auth
+# on the existing volume app.yaml, then start.
 # Upstream ENTRYPOINT still wraps this command (privileged/DinD probe).
 set -eu
 
@@ -8,14 +9,20 @@ CONFIG_DIR="${MCPX_CONFIG_DIR:-/lunar/packages/mcpx-server/config}"
 DEFAULTS_DIR="${MCPX_DEFAULTS_DIR:-/defaults/config}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ENSURE_APP_AUTH="${ENSURE_APP_AUTH:-${SCRIPT_DIR}/ensure_app_auth.py}"
+MERGE_MCP_SERVERS="${MERGE_MCP_SERVERS:-${SCRIPT_DIR}/merge_mcp_servers.py}"
 
 mkdir -p "${CONFIG_DIR}/audit-logs"
 
 if [ -d "${DEFAULTS_DIR}" ]; then
-  # mcp.json: seed once. Never overwrite UI / user edits on the volume.
+  # mcp.json: seed once when the volume file is absent. On later starts,
+  # insert default servers that are missing. Never replace an existing
+  # entry and never delete a server that only exists on the volume.
   if [ ! -e "${CONFIG_DIR}/mcp.json" ] && [ -f "${DEFAULTS_DIR}/mcp.json" ]; then
     echo "RAILWAY: seeding ${CONFIG_DIR}/mcp.json from image defaults"
     cp "${DEFAULTS_DIR}/mcp.json" "${CONFIG_DIR}/mcp.json"
+  fi
+  if [ -f "${CONFIG_DIR}/mcp.json" ] && [ -f "${DEFAULTS_DIR}/mcp.json" ]; then
+    python3 "${MERGE_MCP_SERVERS}" "${CONFIG_DIR}/mcp.json" "${DEFAULTS_DIR}/mcp.json"
   fi
   # app.yaml: seed only when missing. Auth is merged below on every start
   # so an existing volume that still has auth.enabled:false actually flips.
@@ -34,8 +41,9 @@ auth:
 EOF
 fi
 
-# Merge auth.enabled=true into the volume file. Does not rewrite mcp.json
-# or other app.yaml keys (permissions, toolGroups, toolExtensions).
+# Merge auth.enabled=true into the volume file. Does not rewrite other
+# app.yaml keys (permissions, toolGroups, toolExtensions). mcp.json is
+# handled above and is not touched here.
 python3 "${ENSURE_APP_AUTH}" merge "${CONFIG_DIR}/app.yaml"
 
 # Fail closed. Upstream buildApiKeyGuard is fail-open when AUTH_KEY is empty.

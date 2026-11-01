@@ -29,11 +29,12 @@ set.
 | --- | --- |
 | `Dockerfile` | Thin wrapper around `us-central1-docker.pkg.dev/prj-common-442813/mcpx/mcpx:0.5.8` |
 | `MCPX_VERSION` | Pinned tag (`0.5.8`) |
-| `config/mcp.json` | Seeded MCP server list (first start only) |
+| `config/mcp.json` | Seeded MCP server list. Missing names are added on every start; existing entries are not replaced |
 | `config/app.yaml` | Seeded ACL / auth / tool groups; `auth.enabled` is merged on every start |
 | `config/mcp.remote.example.json` | Example adding a private-network HTTP MCP server; **not** copied into the image |
-| `docker/railway-entrypoint.sh` | Volume seed, auth merge, `AUTH_KEY` check, then `exec /usr/local/bin/startup.sh` |
+| `docker/railway-entrypoint.sh` | Volume seed, missing-server merge, auth merge, `AUTH_KEY` check, then `exec /usr/local/bin/startup.sh` |
 | `docker/ensure_app_auth.py` | YAML merge + fail-closed `AUTH_KEY` check |
+| `docker/merge_mcp_servers.py` | Insert default MCP servers whose names are absent on the volume |
 | `railway.json` | Builder Dockerfile, healthcheck `/healthcheck`, restart on failure |
 | `.railway/railway.ts` | Optional IaC description of the existing service; **not** applied as the owner of the service |
 | `.env.example` | Variable catalog for the Railway dashboard |
@@ -76,6 +77,7 @@ flowchart TB
         DF[Dockerfile]
         EP[railway-entrypoint.sh]
         PY[ensure_app_auth.py]
+        MERGE[merge_mcp_servers.py]
         MCPJSON[config/mcp.json]
         APPYAML[config/app.yaml]
         RJ[railway.json]
@@ -85,6 +87,7 @@ flowchart TB
         UP[Official mcpx:0.5.8]
         DEF["/defaults/config"]
         EP --> PY
+        EP --> MERGE
         DF --> UP
         MCPJSON --> DEF
         APPYAML --> DEF
@@ -97,15 +100,19 @@ flowchart TB
         MET["Prometheus :3000"]
         VOL["Volume /lunar/packages/mcpx-server/config"]
         TIME["uvx mcp-server-time"]
+        OSM["npx openstreetmap-mcp-server"]
+        OSRM["streamable-http osrm"]
         EP --> START
         START --> SRV
         START --> UI
         START --> MET
         VOL --> SRV
         SRV --> TIME
+        SRV --> OSM
+        SRV --> OSRM
     end
 
-    DEF -->|"seed if missing"| VOL
+    DEF -->|"seed if missing; add absent servers"| VOL
     PY -->|"merge auth.enabled every start"| VOL
 ```
 
@@ -115,11 +122,13 @@ flowchart TB
    probe. This repo sets `DIND_ENABLED=false`; Railway containers are not
    privileged.
 2. **`railway-entrypoint.sh` (CMD)** — creates `audit-logs/`, seeds
-   `mcp.json` / `app.yaml` only when absent on the volume, writes a minimal
-   auth-enabled `app.yaml` if both volume and image default are missing, merges
-   `auth.enabled: true` into the existing volume file, refuses to start when
-   `AUTH_KEY` is empty, `chown`s the volume to user `lunar` (uid 1002), exports
-   `APP_CONFIG_PATH` / `SERVERS_CONFIG_PATH` / `AUDIT_LOG_DIR`, then
+   `mcp.json` / `app.yaml` only when absent on the volume, inserts default MCP
+   servers that are missing from an existing `mcp.json` (does not replace or
+   delete entries), writes a minimal auth-enabled `app.yaml` if both volume and
+   image default are missing, merges `auth.enabled: true` into the existing
+   volume file, refuses to start when `AUTH_KEY` is empty, `chown`s the volume
+   to user `lunar` (uid 1002), exports `APP_CONFIG_PATH` /
+   `SERVERS_CONFIG_PATH` / `AUDIT_LOG_DIR`, then
    `exec /usr/local/bin/startup.sh`.
 3. **MCPX server** — Express HTTP on `MCPX_PORT` (9000). Logs from the live
    deploy: `MCPX server started on port 9000`, `API key guard is enabled`,
@@ -129,9 +138,17 @@ flowchart TB
 5. **Metrics** — optional Prometheus listener on `SERVE_METRICS_PORT` (default
    3000). `ENABLE_METRICS=true` is set on the service; this repo does not
    attach a public domain to 3000.
-6. **Stdio child `time`** — spawned by MCPX when `ENABLE_STDIO_MCP_SERVERS=true`
-   (set on the service and in `.env.example`). Command from `config/mcp.json`:
-   `uvx --with mcp<2.0.0 mcp-server-time --local-timezone=Europe/Prague`.
+6. **Stdio children** — spawned by MCPX when `ENABLE_STDIO_MCP_SERVERS=true`
+   (set on the service and in `.env.example`). Commands from `config/mcp.json`:
+   `time` via `uvx --with mcp<2.0.0 mcp-server-time --local-timezone=Europe/Prague`,
+   and `openstreetmap-mcp-server` via
+   `npx -y @cyanheads/openstreetmap-mcp-server` with
+   `OSM_USER_AGENT=animarium-lunar-mcpx/1.0`. The first OpenStreetMap spawn
+   downloads the package from npm.
+7. **Remote child `osrm`** — Streamable HTTP to
+   `https://gateway.pipeworx.io/osrm/mcp` (Pipeworx pack scoped to OSRM, no
+   API key). `https://pipeworx.io` itself is the marketing site and rejects
+   MCP `initialize`.
 
 **Git-tracked modules that are not in the running container.** `.railway/`
 is listed in `.dockerignore`. Markdown files are also dockerignored. Tests
@@ -148,7 +165,7 @@ permissions.
 
 | Kind | This deploy | Source |
 | --- | --- | --- |
-| **Tools** | Aggregated from target servers. Seeded target is `time` only. | `config/mcp.json`; MCPX `ListToolsRequest` / `CallToolRequest` |
+| **Tools** | Aggregated from target servers. Seeded targets are `time`, `openstreetmap-mcp-server`, and `osrm`. | `config/mcp.json`; MCPX `ListToolsRequest` / `CallToolRequest` |
 | **Prompts** | **Not advertised.** `ENABLE_PROMPT_CAPABILITY` is unset; upstream default is `false`, so prompt handlers are not registered. | MCPX `env.ts` + `mcp-gateway.ts` |
 | **Resources** | **Not advertised.** `ENABLE_RESOURCE_CAPABILITY` is unset; upstream default is `false`. | same |
 | **Skills** | Skill REST router is mounted at `/skills`. `ENABLE_SKILL_SCOPING` is unset (default `false`). `toolGroups: []` in seeded `app.yaml`. | `app.yaml`; MCPX `build-server.ts` / `env.ts` |
@@ -165,11 +182,13 @@ MCP JSON-RPC is served on:
 
 ### Target MCP servers configured in Git
 
-**Seeded (`config/mcp.json`) — copied to the volume only if `mcp.json` is absent:**
+**Seeded (`config/mcp.json`) — copied when `mcp.json` is absent; on later starts, names that are missing are inserted and existing entries are left as-is:**
 
-| Name | Type | Command | Notes |
+| Name | Type | Command or URL | Notes |
 | --- | --- | --- | --- |
 | `time` | `stdio` | `uvx --with mcp<2.0.0 mcp-server-time --local-timezone=Europe/Prague` | Harmless sample; needs no Docker. Image includes `uv` and Node. |
+| `openstreetmap-mcp-server` | `stdio` | `npx -y @cyanheads/openstreetmap-mcp-server` | Env `OSM_USER_AGENT=animarium-lunar-mcpx/1.0`. First spawn downloads from npm. `npx` is an MCPX allowed command. |
+| `osrm` | `streamable-http` | `https://gateway.pipeworx.io/osrm/mcp` | Public OSRM pack (route, table, nearest, match, trip). No auth header. MCPX requires `type: streamable-http` on remote targets. |
 
 **Example only (`config/mcp.remote.example.json`) — not seeded:**
 
@@ -178,7 +197,9 @@ MCP JSON-RPC is served on:
 | `fastmcp-aggregator` | `streamable-http` | `http://fastmcp-aggregator.railway.internal:8080/mcp` |
 
 The live volume may already contain extra servers added via the Control Plane
-UI. This repo **never overwrites** an existing volume `mcp.json`.
+UI. Those entries are kept. A Git-tracked server that is deleted in the UI is
+added again on the next start. An edited command or env for a name that still
+exists is not replaced from Git.
 
 ### Tools from the seeded `time` server
 
@@ -280,7 +301,7 @@ not ACL.
 
 | File | Seed policy |
 | --- | --- |
-| `mcp.json` | Copy from image `/defaults/config` **only if missing** |
+| `mcp.json` | Copy from image `/defaults/config` **only if missing**. Every start, add default server names that are absent. Do not replace existing entries and do not delete volume-only servers. |
 | `app.yaml` | Copy if missing; **every start** merge `auth.enabled: true` and default `header: x-lunar-api-key` if `header` is absent. Other keys (`permissions`, `toolGroups`, `toolExtensions`) are not rewritten. |
 | `audit-logs/` | Created every start. `ENABLE_AUDIT_LOG` defaults true in MCPX. |
 
@@ -431,8 +452,10 @@ probes) and `ListToolsRequest received` on `/mcp` (authenticated clients).
    Confirm the live value includes `https://lunar-mcpx-production-ui.up.railway.app`.
 4. **CORS vs API key header.** Add `x-lunar-api-key` to MCPX
    `allowedHeaders` (upstream change) if browser clients need it.
-5. **Volume `mcp.json` drift.** Git is not the runtime source of truth after
-   first seed. Document or automate a controlled resync.
+5. **Volume `mcp.json` edits.** Missing Git servers are inserted on start.
+   Edits to an existing server, and servers that exist only on the volume, are
+   not synced back to Git and are not overwritten. Removing a Git-tracked
+   server in the UI does not stick across restart.
 6. **`fastmcp-aggregator` is example-only.** Sibling service exists and is
    often sleeping; it is not in seeded `mcp.json`. Add it via UI or replace
    volume `mcp.json` if that hop is desired.
