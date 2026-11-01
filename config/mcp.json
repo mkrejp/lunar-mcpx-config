@@ -10,6 +10,21 @@
         "--local-timezone=Europe/Prague"
       ],
       "icon": "⏰"
+    },
+    "openstreetmap-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cyanheads/openstreetmap-mcp-server"
+      ],
+      "env": {
+        "OSM_USER_AGENT": "animarium-lunar-mcpx/1.0"
+      }
+    },
+    "osrm": {
+      "type": "streamable-http",
+      "url": "https://gateway.pipeworx.io/osrm/mcp"
     }
   }
 }

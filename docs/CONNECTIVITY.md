@@ -157,6 +157,8 @@ flowchart TB
 | Destination | When it happens | Auth |
 | --- | --- | --- |
 | PyPI (via `uvx`) | Spawn of seeded `time` server | none (public index) |
+| npm (via `npx`) | First spawn of seeded `openstreetmap-mcp-server` (`@cyanheads/openstreetmap-mcp-server`) | none (public registry) |
+| `https://gateway.pipeworx.io/osrm/mcp` | Seeded `osrm` target, Streamable HTTP `initialize` / tool calls | none (public demo) |
 | `http://fastmcp-aggregator.railway.internal:8080/mcp` | Only if that server is added on the volume / UI. Git example file is **not** seeded. Live aggregator service exists, often **SLEEPING**, public domain on 8080. | **assumption:** whatever that service implements; example JSON has no headers |
 | MCP-inspectoriat | Not a target in this repo. Inspectoriat has `REMOTE_MCP_URL` among its variables — **assumption:** it is an MCP **client** of lunar-mcpx, not an upstream. | inspectoriat's own Google OAuth / secrets; MCPX API key if it calls `/mcp` |
 | Lunar Loki | Disabled (`LUNAR_TELEMETRY=false`) | n/a |
@@ -174,7 +176,7 @@ IPv6 egress is **disabled** on the live service (`ipv6EgressEnabled: false`).
 | **5173** | Control Plane UI | HTTP | Yes — second domain | One Railway domain = one port |
 | **3000** | Prometheus | HTTP `GET /metrics` | **No** | Reachable on private DNS if needed |
 | **8080** | *(none in this image)* | — | Accidental public domain in live config | FastMCP-aggregator (other service) is the process that actually listens on 8080 |
-| stdio | `uvx mcp-server-time` | MCP over stdin/stdout pipes | No | Same network namespace; no TCP |
+| stdio | `uvx mcp-server-time`, `npx @cyanheads/openstreetmap-mcp-server` | MCP over stdin/stdout pipes | No | Same network namespace; no TCP |
 
 Loopback used inside the container: UI → `MCPX_SERVER_URL=http://127.0.0.1:9000`.
 
@@ -193,7 +195,10 @@ Direction is from the **source**'s perspective.
 | Operator / Prometheus | `lunar-mcpx-config.railway.internal` | HTTP | 3000 | none in this repo | inbound (private) | `ENABLE_METRICS`; no public domain |
 | MCPX | volume files | filesystem | — | Unix `lunar` after `chown` | local | entrypoint + volume mount |
 | MCPX | `uvx mcp-server-time` | stdio MCP | — | none | outbound (in-process) | `config/mcp.json`; `ENABLE_STDIO_MCP_SERVERS=true` |
+| MCPX | `npx @cyanheads/openstreetmap-mcp-server` | stdio MCP | — | none | outbound (in-process) | `config/mcp.json`; `OSM_USER_AGENT` |
+| MCPX | `gateway.pipeworx.io` `/osrm/mcp` | HTTPS Streamable HTTP | 443 | none | outbound | `config/mcp.json` `osrm`; live `initialize` returns pack `osrm` |
 | `uvx` | PyPI | HTTPS | 443 | none | outbound | README stdio note; first-spawn download |
+| `npx` | npm registry | HTTPS | 443 | none | outbound | first spawn of the OpenStreetMap server |
 | MCPX | `fastmcp-aggregator.railway.internal` | HTTP Streamable | 8080 | none in example JSON | outbound (optional) | `config/mcp.remote.example.json`; sibling service port 8080 |
 | MCP-inspectoriat | lunar-mcpx `/mcp` | HTTP/HTTPS | 9000 or 443 | **assumption:** API key if it uses `REMOTE_MCP_URL` | inbound to MCPX | inspectoriat var **name** `REMOTE_MCP_URL` only |
 | Railway build | GitHub `mkrejp/lunar-mcpx-config` | HTTPS git | 443 | GitHub deploy credentials | outbound from Railway | service source |

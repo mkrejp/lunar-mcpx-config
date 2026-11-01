@@ -254,13 +254,19 @@ Nový projekt **nevytvářejte** — služba `lunar-mcpx` už existuje.
 
 ## Přidání MCP serverů
 
-Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Existující `mcp.json` se **nikdy** nepřepisuje (UI / ruční edity zůstanou). `app.yaml` se seeduje stejně, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`), aby se zapnutí auth projevilo i na volume z PR #1. Další změny:
+Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Při každém dalším startu se do existujícího souboru **doplní servery, které v něm chybí** (image defaults). Existující záznam se nepřepisuje a server přidaný jen v UI se nemaže. Server, který je v Gitu a v UI smažete, se při dalším startu vrátí. `app.yaml` se seeduje jen když chybí, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`). Další změny:
 
 1. **Control Plane UI** (doména na portu 5173) → Add Server, nebo
-2. úprava `mcp.json` v Gitu + smazání souboru na volume (jinak seed nepřepíše existující soubor), nebo
+2. úprava `mcp.json` v Gitu — další start doplní chybějící jména; smazání souboru na volume znovu naseeduje celý soubor, nebo
 3. `railway volume files` / Volume browser.
 
-Ukázkový server **`time`** (uvx / stdio) je neškodný a **nepotřebuje Docker**. Image obsahuje `uv` a Node, takže `uvx` / `npx` stdio servery na Railway můžou běžet bez privileged režimu.
+Výchozí servery v `config/mcp.json`:
+
+- **`time`** — `uvx` / stdio, nepotřebuje Docker.
+- **`openstreetmap-mcp-server`** — `npx -y @cyanheads/openstreetmap-mcp-server`, env `OSM_USER_AGENT=animarium-lunar-mcpx/1.0`. První start stáhne balíček z npm.
+- **`osrm`** — vzdálený Streamable HTTP `https://gateway.pipeworx.io/osrm/mcp` (veřejný OSRM pack, bez klíče). Kořen `https://pipeworx.io` MCP neposlouchá.
+
+Image obsahuje `uv` a Node, takže `uvx` / `npx` stdio servery na Railway můžou běžet bez privileged režimu.
 
 Vzdálené HTTP servery (doporučené na Railway):
 
@@ -333,7 +339,7 @@ Metrics (privátní): `http://lunar-mcpx.railway.internal:3000/metrics`.
 | --- | --- | --- |
 | Jedna veřejná HTTP doména = jeden cílový port | Image poslouchá na 9000, 5173 a 3000 | Primární doména → **9000** (MCP). Druhá doména → **5173** (UI). Metrics nechat na private network. |
 | Žádný privileged / Docker-in-Docker | `command: docker` stdio servery nespustí | Vzdálené `streamable-http` / `sse`, nebo stdio `uvx`/`npx` (image je má nainstalované). |
-| Volume není v buildu ani pre-deploy | Seed configu musí být ve start command | `docker/railway-entrypoint.sh` zkopíruje `mcp.json` / `app.yaml`, jen když na volume chybí; `auth.enabled` se do existujícího `app.yaml` sloučí při každém startu. |
+| Volume není v buildu ani pre-deploy | Seed configu musí být ve start command | `docker/railway-entrypoint.sh` zkopíruje `mcp.json` / `app.yaml`, jen když na volume chybí. Chybějící servery z image `mcp.json` se při každém startu doplní; existující záznamy se nepřepisují. `auth.enabled` se do existujícího `app.yaml` sloučí při každém startu. |
 | Volume + zero-downtime | Krátký výpadek při redeploy | Očekávané; healthcheck jen přepíná traffic až po 2xx. |
 | Config as Code (`railway.json`) deprecated | Nové služby ho od 2026-12-01 nemusí číst | Stejné hodnoty nastavte v dashboardu; `.railway/railway.ts` je volitelný IaC, **nespravujte** službu oběma modely naráz. |
 | `PORT` vs více portů | Healthcheck jde na `$PORT` | `PORT=9000` musí sedět s `MCPX_PORT` a target portem MCP domény. |
