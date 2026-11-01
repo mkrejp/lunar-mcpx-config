@@ -16,6 +16,17 @@ Dashboard: [Railway projekt](https://railway.com/project/87d54f99-b2b7-4f56-b2cd
 
 Upstream: [TheLunarCompany/lunar `mcpx/`](https://github.com/TheLunarCompany/lunar/tree/main/mcpx), dokumentace [docs.lunar.dev](https://docs.lunar.dev/mcpx/get_started) (přesměrování na Boomi MCP Gateway).
 
+## Dokumentace
+
+Tento repo je **deploy konfigurace**, ne zdroj MCPX. Top-level popisy řešení, které konfigurace definuje:
+
+| | |
+| --- | --- |
+| [Architektura](docs/ARCHITECTURE.md) | Účel, kontext, komponenty, MCP servery/nástroje, request flow, env, deploy, security, observabilita |
+| [Konektivita](docs/CONNECTIVITY.md) | Trust boundaries, inbound/outbound, porty, auth body, inventory tabulka spojení |
+
+Oba soubory jsou v angličtině a oddělují fakta z Gitu od živého Railway stavu (označené jako assumption, pokud není v kódu).
+
 ## Co je v tomto setupu
 
 - **Image:** oficiální all-in-one `us-central1-docker.pkg.dev/prj-common-442813/mcpx/mcpx:0.5.8` (nejnovější publikovaný tag v Artifact Registry v době sestavení; tag `latest` aktuálně ukazuje na starší `0.4.55`).
