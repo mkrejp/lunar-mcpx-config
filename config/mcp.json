@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "time": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--with",
+        "mcp<2.0.0",
+        "mcp-server-time",
+        "--local-timezone=Europe/Prague"
+      ],
+      "icon": "⏰"
+    }
+  }
+}
