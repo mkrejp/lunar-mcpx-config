@@ -117,3 +117,8 @@ def test_seeded_mcp_json_includes_osrm_and_openstreetmap() -> None:
     assert servers["osrm"]["type"] == "streamable-http"
     assert servers["osrm"]["url"] == "https://gateway.pipeworx.io/osrm/mcp"
     assert "command" not in servers["osrm"]
+    assert servers["geocode-mcp"]["args"][-1] == "geocode-mcp"
+    assert servers["mcp-nominatim"]["args"][-1] == "@pipeworx/mcp-nominatim"
+    assert servers["open-streetmap-mcp"]["args"] == ["osm-mcp-server"]
+    assert servers["switzerland-mcp"]["args"][-1] == "mcp-swiss"
+    assert servers["clio-geojson"]["args"] == ["clio-kit", "mcp-server", "geojson"]
