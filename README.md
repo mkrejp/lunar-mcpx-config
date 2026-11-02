@@ -139,6 +139,33 @@ Až budete mít i UI doménu na 5173, **přidejte ji** do `CORS_ORIGINS` (čárk
 
 Kompletní seznam včetně volitelných proměnných je v [`.env.example`](.env.example).
 
+## Control Plane UI a `auth.enabled` (401 při deactivate)
+
+S `auth.enabled: true` + `AUTH_KEY` (tento deploy) chrání MCPX **stejným** `buildApiKeyGuard` i Control Plane REST (`/config`, `/catalog`, `/identity`, `/admin`, `/skills`). Endpoint deaktivace je:
+
+`PUT /config/target-server/:name/deactivate`
+
+**Proč UI hlásí `Failed to deactivate server: API request failed: 401`:**
+
+1. Server log: `API key not provided in headers, will not allow connection` a HTTP `PUT …/deactivate → 401` (OPTIONS CORS projde → 204).
+2. MCPX OSS UI (`mcpx/packages/ui`, 0.5.8) volá REST přes `fetch`/`axios` **bez** headeru `x-lunar-api-key` — posílá jen `Content-Type` (+ `credentials: "include"` pro enterprise cookie).
+3. UI WebSocket `/ws-ui` API klíč **nevyžaduje**, takže seznam serverů v UI vypadá živě, ale mutace (activate/deactivate/add/delete) padají na 401.
+4. Stejné chování: Railway UI (`…-ui.up.railway.app:5173`) i lokální `localhost:5173` mířící na Railway MCP origin.
+
+To **není** špatný `VITE_MCPX_SERVER_URL` ani chybějící CORS origin (preflight 204). Je to produktová mezera OSS UI vs zapnutá API-key auth.
+
+**Co dělat teď**
+
+- Servery vypínat/mazat přes Git: `config/mcp.json` + `config/mcp.prune.json` (entrypoint na volume upsertne/prunes) — bez UI.
+- MCP klienty dál posílají `x-lunar-api-key: <AUTH_KEY>` na `/mcp` (to funguje).
+- Neřešit vypnutím `auth.enabled` na veřejném Railway, pokud má `/mcp` zůstat chráněné.
+
+**Možné dlouhodobé opravy (upstream / vlastní fork)**
+
+- UI: prompt/sessionStorage pro API klíč a posílat `x-lunar-api-key` na REST; zároveň doplnit ten header do `cors.allowedHeaders` v `build-server.ts` (dnes jsou `Authorization`, `X-API-Key`, ne `x-lunar-api-key`).
+- Nebo enterprise login (`VITE_ENABLE_ENTERPRISE` + Auth BFF), pokud je k dispozici.
+- Nebo reverse-proxy/BFF, který UI originu injektuje klíč server-side (klíč nesmí skončit v public `config.json`).
+
 ## Autentizace
 
 Veřejný endpoint `/mcp` musí posílat API klíč. Ověřeno proti upstream MCPX **0.5.8** (`mcpx/packages/mcpx-server`):
