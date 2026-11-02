@@ -1,7 +1,7 @@
 #!/bin/sh
-# Seed git-tracked defaults onto the Railway volume, add any default MCP
-# servers missing from an existing volume mcp.json, force-enable MCPX auth
-# on the existing volume app.yaml, then start.
+# Seed git-tracked defaults onto the Railway volume, reconcile default MCP
+# servers (upsert + prune), expand ${ENV} placeholders for secrets, force-
+# enable MCPX auth on the existing volume app.yaml, then start.
 # Upstream ENTRYPOINT still wraps this command (privileged/DinD probe).
 set -eu
 
@@ -10,19 +10,25 @@ DEFAULTS_DIR="${MCPX_DEFAULTS_DIR:-/defaults/config}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ENSURE_APP_AUTH="${ENSURE_APP_AUTH:-${SCRIPT_DIR}/ensure_app_auth.py}"
 MERGE_MCP_SERVERS="${MERGE_MCP_SERVERS:-${SCRIPT_DIR}/merge_mcp_servers.py}"
+INJECT_ENV_PLACEHOLDERS="${INJECT_ENV_PLACEHOLDERS:-${SCRIPT_DIR}/inject_env_placeholders.py}"
 
 mkdir -p "${CONFIG_DIR}/audit-logs"
 
 if [ -d "${DEFAULTS_DIR}" ]; then
   # mcp.json: seed once when the volume file is absent. On later starts,
-  # insert default servers that are missing. Never replace an existing
-  # entry and never delete a server that only exists on the volume.
+  # upsert default servers and prune retired names. Volume-only servers
+  # (UI additions) are kept unless listed in mcp.prune.json.
   if [ ! -e "${CONFIG_DIR}/mcp.json" ] && [ -f "${DEFAULTS_DIR}/mcp.json" ]; then
     echo "RAILWAY: seeding ${CONFIG_DIR}/mcp.json from image defaults"
     cp "${DEFAULTS_DIR}/mcp.json" "${CONFIG_DIR}/mcp.json"
   fi
   if [ -f "${CONFIG_DIR}/mcp.json" ] && [ -f "${DEFAULTS_DIR}/mcp.json" ]; then
-    python3 "${MERGE_MCP_SERVERS}" "${CONFIG_DIR}/mcp.json" "${DEFAULTS_DIR}/mcp.json"
+    PRUNE_ARG=""
+    if [ -f "${DEFAULTS_DIR}/mcp.prune.json" ]; then
+      PRUNE_ARG="${DEFAULTS_DIR}/mcp.prune.json"
+    fi
+    # shellcheck disable=SC2086
+    python3 "${MERGE_MCP_SERVERS}" "${CONFIG_DIR}/mcp.json" "${DEFAULTS_DIR}/mcp.json" ${PRUNE_ARG}
   fi
   # app.yaml: seed only when missing. Auth is merged below on every start
   # so an existing volume that still has auth.enabled:false actually flips.
@@ -34,11 +40,11 @@ fi
 
 if [ ! -f "${CONFIG_DIR}/app.yaml" ]; then
   echo "RAILWAY: writing minimal auth-enabled app.yaml (no image default found)"
-  cat > "${CONFIG_DIR}/app.yaml" <<'EOF'
+  cat > "${CONFIG_DIR}/app.yaml" <<'APP'
 auth:
   enabled: true
   header: x-lunar-api-key
-EOF
+APP
 fi
 
 # Merge auth.enabled=true into the volume file. Does not rewrite other
@@ -48,6 +54,21 @@ python3 "${ENSURE_APP_AUTH}" merge "${CONFIG_DIR}/app.yaml"
 
 # Fail closed. Upstream buildApiKeyGuard is fail-open when AUTH_KEY is empty.
 python3 "${ENSURE_APP_AUTH}" check-auth-key
+
+# Assemble PIPEWORX_API_KEY from chunked Railway vars when needed.
+# (Some variable-set paths truncate long values; P1..P4 are 9 chars each.)
+if [ -z "${PIPEWORX_API_KEY:-}" ] && [ -n "${PIPEWORX_API_KEY_P1:-}" ]; then
+  PIPEWORX_API_KEY="${PIPEWORX_API_KEY_P1}${PIPEWORX_API_KEY_P2:-}${PIPEWORX_API_KEY_P3:-}${PIPEWORX_API_KEY_P4:-}"
+  export PIPEWORX_API_KEY
+  echo "RAILWAY: assembled PIPEWORX_API_KEY from P1..P4 chunks"
+fi
+
+# Expand ${PIPEWORX_API_KEY} (and any other ${VAR}) in volume mcp.json so
+# remote headers / stdio env can reference Railway variables without
+# committing secrets. Require PIPEWORX_API_KEY when pipeworx is configured.
+if [ -f "${CONFIG_DIR}/mcp.json" ]; then
+  python3 "${INJECT_ENV_PLACEHOLDERS}" "${CONFIG_DIR}/mcp.json" --require PIPEWORX_API_KEY
+fi
 
 # Volume is mounted as root; MCPX then drops to user `lunar` (uid 1002).
 if id lunar >/dev/null 2>&1; then

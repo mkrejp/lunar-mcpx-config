@@ -243,7 +243,7 @@ def test_entrypoint_merges_volume_app_yaml_and_adds_missing_mcp_servers(
     servers = json.loads((config_dir / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]
     assert servers["custom"] == {"type": "stdio", "command": "echo"}
     assert servers["time"] == {"command": "uvx"}
-    assert "added mcp servers to volume: time" in result.stdout
+    assert "added time" in result.stdout
     volume_app = (config_dir / "app.yaml").read_text(encoding="utf-8")
     assert "enabled: true" in volume_app
     assert "header: x-lunar-api-key" in volume_app
