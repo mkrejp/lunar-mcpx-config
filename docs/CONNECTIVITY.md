@@ -119,9 +119,12 @@ than the public URL.
    control-plane REST, `/config`, `/catalog`, `/skills` — header
    `x-lunar-api-key` vs env `AUTH_KEY`.
    **Gap:** OSS Control Plane UI does not send this header, so browser
-   REST mutations (e.g. `PUT /config/target-server/:name/deactivate`) return
-   **401** while `/ws-ui` still works. Prefer Git `mcp.json` / `mcp.prune.json`
-   for server lifecycle when auth is on. See README § Control Plane UI.
+   REST calls return **401** while `/ws-ui` still works — including
+   `PUT /config/target-server/:name/deactivate`, `POST /config/tool-groups`,
+   and `GET /saved-setups`. Prefer Git `mcp.json` / `mcp.prune.json` /
+   `app.yaml` `toolGroups` when auth is on. **Saved Setups** additionally
+   require Lunar Hub after auth (`Not connected to Hub` → 500). See README
+   § Control Plane UI.
 3. **Not authenticated:** `GET /healthcheck`; OAuth callback/discovery router;
    Auth-MCPX router; live Railway probe `HEAD /` (returns 200 in deploy logs).
 4. **CORS** at MCPX for browser origins listed in `CORS_ORIGINS`.
