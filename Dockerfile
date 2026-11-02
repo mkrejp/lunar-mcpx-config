@@ -14,12 +14,14 @@ FROM us-central1-docker.pkg.dev/prj-common-442813/mcpx/mcpx:${MCPX_VERSION}
 USER root
 
 COPY config/mcp.json /defaults/config/mcp.json
+COPY config/mcp.prune.json /defaults/config/mcp.prune.json
 COPY config/app.yaml /defaults/config/app.yaml
 COPY docker/railway-entrypoint.sh /usr/local/bin/railway-entrypoint.sh
 COPY docker/ensure_app_auth.py /usr/local/bin/ensure_app_auth.py
 COPY docker/merge_mcp_servers.py /usr/local/bin/merge_mcp_servers.py
+COPY docker/inject_env_placeholders.py /usr/local/bin/inject_env_placeholders.py
 
-RUN chmod +x /usr/local/bin/railway-entrypoint.sh /usr/local/bin/ensure_app_auth.py /usr/local/bin/merge_mcp_servers.py \
+RUN chmod +x /usr/local/bin/railway-entrypoint.sh /usr/local/bin/ensure_app_auth.py /usr/local/bin/merge_mcp_servers.py /usr/local/bin/inject_env_placeholders.py \
     && mkdir -p /lunar/packages/mcpx-server/config \
     && chown -R lunar:lunar /defaults /lunar/packages/mcpx-server/config
 

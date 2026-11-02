@@ -9,7 +9,7 @@
         "mcp-server-time",
         "--local-timezone=Europe/Prague"
       ],
-      "icon": "⏰"
+      "icon": "\u23f0"
     },
     "openstreetmap-mcp-server": {
       "type": "stdio",
@@ -23,27 +23,22 @@
       }
     },
     "osrm": {
-      "type": "streamable-http",
-      "url": "https://gateway.pipeworx.io/osrm/mcp"
-    },
-    "geocode-mcp": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
-        "geocode-mcp"
+        "@pipeworx/mcp-osrm"
       ],
       "env": {
-        "GEOCODE_USER_AGENT": "MyGeographicApp/1.0 (contact@example.com)"
+        "PIPEWORX_API_KEY": "${PIPEWORX_API_KEY}"
       }
     },
-    "mcp-nominatim": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@pipeworx/mcp-nominatim"
-      ]
+    "pipeworx": {
+      "type": "streamable-http",
+      "url": "https://gateway.pipeworx.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${PIPEWORX_API_KEY}"
+      }
     },
     "open-streetmap-mcp": {
       "type": "stdio",
