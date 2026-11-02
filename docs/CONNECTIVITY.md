@@ -156,7 +156,7 @@ flowchart TB
 
 | Destination | When it happens | Auth |
 | --- | --- | --- |
-| PyPI (via `uvx`) | Spawn of seeded `time`, `open-streetmap-mcp` (`osm-mcp-server`), and `clio-geojson` (`clio-kit`) | none (public index) |
+| PyPI (via `uvx`) | Spawn of seeded `time` (and any future uvx-based servers) | none (public index) |
 | npm (via `npx`) | First spawn of seeded stdio servers `openstreetmap-mcp-server`, `geocode-mcp`, `mcp-nominatim` (`@pipeworx/mcp-nominatim`), `switzerland-mcp` (`mcp-swiss`) | none (public registry) |
 | `https://gateway.pipeworx.io/osrm/mcp` | Seeded `osrm` target, Streamable HTTP `initialize` / tool calls | none (public demo) |
 | `http://fastmcp-aggregator.railway.internal:8080/mcp` | Only if that server is added on the volume / UI. Git example file is **not** seeded. Live aggregator service exists, often **SLEEPING**, public domain on 8080. | **assumption:** whatever that service implements; example JSON has no headers |

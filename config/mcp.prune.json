@@ -1,4 +1,6 @@
 [
   "geocode-mcp",
-  "mcp-nominatim"
+  "mcp-nominatim",
+  "open-streetmap-mcp",
+  "clio-geojson"
 ]

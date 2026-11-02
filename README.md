@@ -254,7 +254,7 @@ Nový projekt **nevytvářejte** — služba `lunar-mcpx` už existuje.
 
 ## Přidání MCP serverů
 
-Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Při každém dalším startu se do existujícího souboru **doplní servery, které v něm chybí** (image defaults). Záznamy se jmény z image `mcp.json` se při startu **upsertnou** (Git je source of truth pro ně). Servery jen z UI zůstanou. Jména v `config/mcp.prune.json` se z volume smažou (teď `geocode-mcp`, `mcp-nominatim`). `app.yaml` se seeduje jen když chybí, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`). Další změny:
+Soubor [`config/mcp.json`](config/mcp.json) se při **prvním** startu zkopíruje na volume, pokud tam ještě není. Při každém dalším startu se do existujícího souboru **doplní servery, které v něm chybí** (image defaults). Záznamy se jmény z image `mcp.json` se při startu **upsertnou** (Git je source of truth pro ně). Servery jen z UI zůstanou. Jména v `config/mcp.prune.json` se z volume smažou (teď `geocode-mcp`, `mcp-nominatim`, `open-streetmap-mcp`, `clio-geojson`). `app.yaml` se seeduje jen když chybí, ale **auth blok se sloučí při každém startu** (`auth.enabled: true`). Další změny:
 
 1. **Control Plane UI** (doména na portu 5173) → Add Server, nebo
 2. úprava `mcp.json` v Gitu — další start doplní chybějící jména; smazání souboru na volume znovu naseeduje celý soubor, nebo
@@ -266,9 +266,7 @@ Výchozí servery v `config/mcp.json`:
 - **`openstreetmap-mcp-server`** — `npx -y @cyanheads/openstreetmap-mcp-server`, env `OSM_USER_AGENT=animarium-lunar-mcpx/1.0`. První start stáhne balíček z npm.
 - **`osrm`** — `npx -y @pipeworx/mcp-osrm` (jen routing: route/table/nearest/match/trip). Env `PIPEWORX_API_KEY` (Railway variable; entrypoint expanduje `${PIPEWORX_API_KEY}`).
 - **`pipeworx`** — Streamable HTTP `https://gateway.pipeworx.io/pipeworx-catalog/mcp` s `X-API-Key: ${PIPEWORX_API_KEY}` (BYO tier dle Pipeworx docs). Plný katalog `/mcp` (~7k tools) MCPX 0.5.8 odmítne (ZodError na `outputSchema`); catalog endpoint dává meta tools + `ask_pipeworx`. `/oauth/mcp` je jen pro OAuth 2.1. Tajemství se do Gitu nedává; entrypoint ho injektuje z env na volume.
-- **`open-streetmap-mcp`** — `uvx osm-mcp-server`.
 - **`switzerland-mcp`** — `npx -y mcp-swiss` (Vikram Gorla). Balíček `@vikramgorla/swiss-mcp` na npm není.
-- **`clio-geojson`** — `uvx clio-kit mcp-server geojson`. Samostatný balíček `clio-geojson-mcp` na PyPI není.
 
 Image obsahuje `uv` a Node, takže `uvx` / `npx` stdio servery na Railway můžou běžet bez privileged režimu.
 
