@@ -265,7 +265,7 @@ Výchozí servery v `config/mcp.json`:
 - **`time`** — `uvx` / stdio, nepotřebuje Docker.
 - **`openstreetmap-mcp-server`** — `npx -y @cyanheads/openstreetmap-mcp-server`, env `OSM_USER_AGENT=animarium-lunar-mcpx/1.0`. První start stáhne balíček z npm.
 - **`osrm`** — `npx -y @pipeworx/mcp-osrm` (jen routing: route/table/nearest/match/trip). Env `PIPEWORX_API_KEY` (Railway variable; entrypoint expanduje `${PIPEWORX_API_KEY}`).
-- **`pipeworx`** — Streamable HTTP `https://gateway.pipeworx.io/mcp` s `Authorization: Bearer ${PIPEWORX_API_KEY}`. Endpoint `/oauth/mcp` vyžaduje interaktivní OAuth 2.1, ne API klíč. Tajemství se do Gitu nedává; entrypoint ho injektuje z env na volume.
+- **`pipeworx`** — Streamable HTTP `https://gateway.pipeworx.io/pipeworx-catalog/mcp` s `X-API-Key: ${PIPEWORX_API_KEY}` (BYO tier dle Pipeworx docs). Plný katalog `/mcp` (~7k tools) MCPX 0.5.8 odmítne (ZodError na `outputSchema`); catalog endpoint dává meta tools + `ask_pipeworx`. `/oauth/mcp` je jen pro OAuth 2.1. Tajemství se do Gitu nedává; entrypoint ho injektuje z env na volume.
 - **`open-streetmap-mcp`** — `uvx osm-mcp-server`.
 - **`switzerland-mcp`** — `npx -y mcp-swiss` (Vikram Gorla). Balíček `@vikramgorla/swiss-mcp` na npm není.
 - **`clio-geojson`** — `uvx clio-kit mcp-server geojson`. Samostatný balíček `clio-geojson-mcp` na PyPI není.

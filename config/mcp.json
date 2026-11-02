@@ -35,9 +35,9 @@
     },
     "pipeworx": {
       "type": "streamable-http",
-      "url": "https://gateway.pipeworx.io/mcp",
+      "url": "https://gateway.pipeworx.io/pipeworx-catalog/mcp",
       "headers": {
-        "Authorization": "Bearer ${PIPEWORX_API_KEY}"
+        "X-API-Key": "${PIPEWORX_API_KEY}"
       }
     },
     "open-streetmap-mcp": {

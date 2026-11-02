@@ -30,8 +30,8 @@ def test_apply_rewrites_headers(tmp_path: Path) -> None:
                 "mcpServers": {
                     "pipeworx": {
                         "type": "streamable-http",
-                        "url": "https://gateway.pipeworx.io/mcp",
-                        "headers": {"Authorization": "Bearer ${PIPEWORX_API_KEY}"},
+                        "url": "https://gateway.pipeworx.io/pipeworx-catalog/mcp",
+                        "headers": {"X-API-Key": "${PIPEWORX_API_KEY}"},
                     }
                 }
             },
@@ -43,7 +43,7 @@ def test_apply_rewrites_headers(tmp_path: Path) -> None:
     missing = apply_env_placeholders(path, env={"PIPEWORX_API_KEY": "tok_test"}, require=["PIPEWORX_API_KEY"])
     assert missing == []
     parsed = json.loads(path.read_text(encoding="utf-8"))
-    assert parsed["mcpServers"]["pipeworx"]["headers"]["Authorization"] == "Bearer tok_test"
+    assert parsed["mcpServers"]["pipeworx"]["headers"]["X-API-Key"] == "tok_test"
 
 
 def test_apply_requires_var(tmp_path: Path) -> None:
