@@ -103,7 +103,7 @@ def test_apply_writes_updates_and_prunes(tmp_path: Path) -> None:
     )
     defaults.write_text(
         '{"mcpServers":{"osrm":{"type":"stdio","command":"npx","args":["-y","@pipeworx/mcp-osrm"]},'
-        '"pipeworx":{"type":"streamable-http","url":"https://gateway.pipeworx.io/mcp"}}}\n',
+        '"pipeworx":{"type":"streamable-http","url":"https://gateway.pipeworx.io/pipeworx-catalog/mcp"}}}\n',
         encoding="utf-8",
     )
     prune.write_text('["geocode-mcp","mcp-nominatim"]\n', encoding="utf-8")
@@ -115,7 +115,7 @@ def test_apply_writes_updates_and_prunes(tmp_path: Path) -> None:
     assert removed == ["geocode-mcp"]
     parsed = json.loads(volume.read_text(encoding="utf-8"))
     assert parsed["mcpServers"]["osrm"]["type"] == "stdio"
-    assert parsed["mcpServers"]["pipeworx"]["url"] == "https://gateway.pipeworx.io/mcp"
+    assert parsed["mcpServers"]["pipeworx"]["url"] == "https://gateway.pipeworx.io/pipeworx-catalog/mcp"
     assert "geocode-mcp" not in parsed["mcpServers"]
     assert parsed["mcpServers"]["custom"]["command"] == "echo"
 
@@ -158,8 +158,8 @@ def test_seeded_mcp_json_split_osrm_and_pipeworx() -> None:
     assert servers["osrm"]["args"][-1] == "@pipeworx/mcp-osrm"
     assert servers["osrm"]["env"]["PIPEWORX_API_KEY"] == "${PIPEWORX_API_KEY}"
     assert servers["pipeworx"]["type"] == "streamable-http"
-    assert servers["pipeworx"]["url"] == "https://gateway.pipeworx.io/mcp"
-    assert servers["pipeworx"]["headers"]["Authorization"] == "Bearer ${PIPEWORX_API_KEY}"
+    assert servers["pipeworx"]["url"] == "https://gateway.pipeworx.io/pipeworx-catalog/mcp"
+    assert servers["pipeworx"]["headers"]["X-API-Key"] == "${PIPEWORX_API_KEY}"
     assert "geocode-mcp" not in servers
     assert "mcp-nominatim" not in servers
     assert servers["switzerland-mcp"]["args"][-1] == "mcp-swiss"
