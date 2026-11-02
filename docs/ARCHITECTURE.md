@@ -165,7 +165,7 @@ permissions.
 
 | Kind | This deploy | Source |
 | --- | --- | --- |
-| **Tools** | Aggregated from target servers. Seeded targets are `time`, `openstreetmap-mcp-server`, `osrm`, `geocode-mcp`, `mcp-nominatim`, `open-streetmap-mcp`, `switzerland-mcp`, and `clio-geojson`. | `config/mcp.json`; MCPX `ListToolsRequest` / `CallToolRequest` |
+| **Tools** | Aggregated from target servers. Seeded targets are `time`, `openstreetmap-mcp-server`, `osrm`, `pipeworx`, and `switzerland-mcp` (retired names are listed in `config/mcp.prune.json`). | `config/mcp.json`; MCPX `ListToolsRequest` / `CallToolRequest` |
 | **Prompts** | **Not advertised.** `ENABLE_PROMPT_CAPABILITY` is unset; upstream default is `false`, so prompt handlers are not registered. | MCPX `env.ts` + `mcp-gateway.ts` |
 | **Resources** | **Not advertised.** `ENABLE_RESOURCE_CAPABILITY` is unset; upstream default is `false`. | same |
 | **Skills** | Skill REST router is mounted at `/skills`. `ENABLE_SKILL_SCOPING` is unset (default `false`). `toolGroups: []` in seeded `app.yaml`. | `app.yaml`; MCPX `build-server.ts` / `env.ts` |
@@ -191,9 +191,7 @@ MCP JSON-RPC is served on:
 | `osrm` | `streamable-http` | `https://gateway.pipeworx.io/osrm/mcp` | Public OSRM pack (route, table, nearest, match, trip). No auth header. MCPX requires `type: streamable-http` on remote targets. |
 | `geocode-mcp` | `stdio` | `npx -y geocode-mcp` | Env `GEOCODE_USER_AGENT=MyGeographicApp/1.0 (contact@example.com)`. Nominatim geocoding, no API key. |
 | `mcp-nominatim` | `stdio` | `npx -y @pipeworx/mcp-nominatim` | Published scope is `@pipeworx`, not `@pipeworx-io`. |
-| `open-streetmap-mcp` | `stdio` | `uvx osm-mcp-server` | PyPI `osm-mcp-server`. |
 | `switzerland-mcp` | `stdio` | `npx -y mcp-swiss` | Vikram Gorla's package is `mcp-swiss`. `@vikramgorla/swiss-mcp` is not on npm. |
-| `clio-geojson` | `stdio` | `uvx clio-kit mcp-server geojson` | CLIO Kit GeoJSON server. `clio-geojson-mcp` is not a PyPI distribution. `uvx` is an allowed MCPX command; `clio-kit` alone is not. |
 
 **Example only (`config/mcp.remote.example.json`) — not seeded:**
 

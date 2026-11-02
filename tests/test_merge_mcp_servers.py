@@ -162,10 +162,17 @@ def test_seeded_mcp_json_split_osrm_and_pipeworx() -> None:
     assert servers["pipeworx"]["headers"]["X-API-Key"] == "${PIPEWORX_API_KEY}"
     assert "geocode-mcp" not in servers
     assert "mcp-nominatim" not in servers
+    assert "open-streetmap-mcp" not in servers
+    assert "clio-geojson" not in servers
     assert servers["switzerland-mcp"]["args"][-1] == "mcp-swiss"
-    assert servers["clio-geojson"]["args"] == ["clio-kit", "mcp-server", "geojson"]
+    assert "openstreetmap-mcp-server" in servers
 
     prune = json.loads(
         (Path(__file__).resolve().parents[1] / "config" / "mcp.prune.json").read_text(encoding="utf-8")
     )
-    assert prune == ["geocode-mcp", "mcp-nominatim"]
+    assert prune == [
+        "geocode-mcp",
+        "mcp-nominatim",
+        "open-streetmap-mcp",
+        "clio-geojson",
+    ]

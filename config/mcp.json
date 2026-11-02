@@ -40,28 +40,12 @@
         "X-API-Key": "${PIPEWORX_API_KEY}"
       }
     },
-    "open-streetmap-mcp": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "osm-mcp-server"
-      ]
-    },
     "switzerland-mcp": {
       "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
         "mcp-swiss"
-      ]
-    },
-    "clio-geojson": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": [
-        "clio-kit",
-        "mcp-server",
-        "geojson"
       ]
     }
   }
