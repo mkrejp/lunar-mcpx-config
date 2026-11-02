@@ -139,6 +139,42 @@ Až budete mít i UI doménu na 5173, **přidejte ji** do `CORS_ORIGINS` (čárk
 
 Kompletní seznam včetně volitelných proměnných je v [`.env.example`](.env.example).
 
+## Control Plane UI a `auth.enabled` (401 při deactivate)
+
+S `auth.enabled: true` + `AUTH_KEY` (tento deploy) chrání MCPX **stejným** `buildApiKeyGuard` i Control Plane REST (`/config`, `/catalog`, `/identity`, `/admin`, `/skills`). Endpoint deaktivace je:
+
+`PUT /config/target-server/:name/deactivate`
+
+**Proč UI hlásí 401** (`Failed to deactivate…`, Tool Group create, `Failed to load saved setups`, …):
+
+1. Server log: `API key not provided in headers, will not allow connection` a HTTP mutace/listy → **401** (OPTIONS CORS projde → 204).
+2. MCPX OSS UI (`mcpx/packages/ui`, 0.5.8) volá REST přes `fetch`/`axios` **bez** headeru `x-lunar-api-key` — posílá jen `Content-Type` (+ `credentials: "include"` pro enterprise cookie).
+3. UI WebSocket `/ws-ui` API klíč **nevyžaduje**, takže seznam serverů v UI vypadá živě, ale Control Plane REST padá na 401.
+4. Stejné chování: Railway UI (`…-ui.up.railway.app:5173`) i lokální `localhost:5173` mířící na Railway MCP origin.
+
+Ověřené endpointy (Railway HTTP, Europe/Prague ~14:02):
+
+| UI akce | Endpoint | Status teď | Po API klíči |
+| --- | --- | --- | --- |
+| Deactivate server | `PUT /config/target-server/:name/deactivate` | **401** (chybí klíč) | OK (volume `app.yaml`) |
+| Create Tool Group | `POST /config/tool-groups` | **401** (chybí klíč) | OK (persistuje do `app.yaml` / toolGroups) |
+| Load saved setups | `GET /saved-setups` | **401** (chybí klíč) | pak **Hub**: `SavedSetupsClient` → „Not connected to Hub“ → **500**, dokud není Lunar Hub (`INSTANCE_KEY` / owner) |
+
+To **není** špatný `VITE_MCPX_SERVER_URL` ani chybějící CORS origin (preflight 204). Je to produktová mezera OSS UI vs zapnutá API-key auth (+ Hub pro Saved Setups).
+
+**Co dělat teď**
+
+- Servery / tool groups spravovat přes Git: `config/mcp.json`, `config/mcp.prune.json`, `config/app.yaml` (`toolGroups`) — entrypoint volume upsert/prune — bez UI REST.
+- Saved Setups v OSS bez Hubu nefungují ani s API klíčem; nečekejte je na tomto Railway deployi.
+- MCP klienty dál posílají `x-lunar-api-key: <AUTH_KEY>` na `/mcp` (to funguje).
+- Neřešit vypnutím `auth.enabled` na veřejném Railway, pokud má `/mcp` zůstat chráněné.
+
+**Možné dlouhodobé opravy (upstream / vlastní fork)**
+
+- UI: prompt/sessionStorage pro API klíč a posílat `x-lunar-api-key` na REST; zároveň doplnit ten header do `cors.allowedHeaders` v `build-server.ts` (dnes jsou `Authorization`, `X-API-Key`, ne `x-lunar-api-key`).
+- Nebo enterprise login (`VITE_ENABLE_ENTERPRISE` + Auth BFF), pokud je k dispozici.
+- Nebo reverse-proxy/BFF, který UI originu injektuje klíč server-side (klíč nesmí skončit v public `config.json`).
+
 ## Autentizace
 
 Veřejný endpoint `/mcp` musí posílat API klíč. Ověřeno proti upstream MCPX **0.5.8** (`mcpx/packages/mcpx-server`):
